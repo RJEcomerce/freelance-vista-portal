@@ -1,14 +1,16 @@
 
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom'; // Importar useNavigate
 import Header from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Settings, Users, MessageSquare, BarChart3, Search, Filter, Eye, CheckCircle, XCircle } from 'lucide-react';
+import { Settings, Users, MessageSquare, BarChart3, Search, Filter, Eye, CheckCircle, XCircle, LogOut } from 'lucide-react'; // Adicionar LogOut
 
 const Admin = () => {
+  const navigate = useNavigate(); // Hook para navegação
   const [searchTerm, setSearchTerm] = useState('');
 
   // Mock data
@@ -65,19 +67,30 @@ const Admin = () => {
     console.log('Rejeitar freelancer:', id);
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('adminSession');
+    navigate('/admin/login');
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center">
-            <Settings className="h-8 w-8 mr-3 text-blue-600" />
-            Painel Administrativo
-          </h1>
-          <p className="text-gray-600">
-            Gerencie freelancers, projetos e monitore o desempenho da plataforma
-          </p>
+        <div className="flex justify-between items-start mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center">
+              <Settings className="h-8 w-8 mr-3 text-blue-600" />
+              Painel Administrativo
+            </h1>
+            <p className="text-gray-600">
+              Gerencie freelancers, projetos e monitore o desempenho da plataforma
+            </p>
+          </div>
+          <Button variant="outline" onClick={handleLogout}>
+            <LogOut className="h-4 w-4 mr-2" />
+            Sair
+          </Button>
         </div>
 
         {/* Stats Cards */}
