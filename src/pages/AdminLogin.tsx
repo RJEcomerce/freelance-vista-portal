@@ -143,6 +143,7 @@ const AdminLogin = () => {
           </button>
         </div>
 
+        {/*
         <div className="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
           <p className="text-sm text-yellow-800">
             <strong>Acesso padrão:</strong><br />
@@ -150,6 +151,7 @@ const AdminLogin = () => {
             Senha: admin123
           </p>
         </div>
+        */}
       </div>
     </div>
   );

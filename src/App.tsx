@@ -9,6 +9,7 @@ import Cadastro from "./pages/Cadastro";
 import Admin from "./pages/Admin";
 import AdminLogin from "./pages/AdminLogin";
 import NotFound from "./pages/NotFound";
+import ProtectedRoute from "./auth/ProtectedRoute"; // Importar ProtectedRoute
 
 const queryClient = new QueryClient();
 
@@ -21,7 +22,15 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/cadastro" element={<Cadastro />} />
-          <Route path="/admin" element={<Admin />} />
+          {/* Rota /admin protegida */}
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute>
+                <Admin />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/admin/login" element={<AdminLogin />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
