@@ -55,18 +55,7 @@ const FreelancerCard = ({ freelancer, onContact }: FreelancerCardProps) => {
             </div>
           </div>
           
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pt-4">
-            <div className="flex space-x-4 text-sm text-gray-600 mb-3 sm:mb-0">
-              <div className="flex items-center">
-                <Phone className="h-4 w-4 mr-1" />
-                {freelancer.phone}
-              </div>
-              <div className="flex items-center">
-                <Mail className="h-4 w-4 mr-1" />
-                {freelancer.email}
-              </div>
-            </div>
-            
+          <div className="flex justify-end pt-4">
             <Button
               onClick={() => onContact(freelancer)}
               className="bg-blue-600 hover:bg-blue-700 text-white"

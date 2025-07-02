@@ -9,7 +9,182 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      admin_users: {
+        Row: {
+          created_at: string | null
+          id: string
+          password_hash: string
+          username: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          password_hash: string
+          username: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          password_hash?: string
+          username?: string
+        }
+        Relationships: []
+      }
+      contacts: {
+        Row: {
+          contractor_email: string
+          contractor_name: string
+          contractor_phone: string
+          created_at: string | null
+          daily_rate: number
+          freelancer_id: string | null
+          id: string
+          project_description: string | null
+          status: string | null
+          work_address: string
+        }
+        Insert: {
+          contractor_email: string
+          contractor_name: string
+          contractor_phone: string
+          created_at?: string | null
+          daily_rate: number
+          freelancer_id?: string | null
+          id?: string
+          project_description?: string | null
+          status?: string | null
+          work_address: string
+        }
+        Update: {
+          contractor_email?: string
+          contractor_name?: string
+          contractor_phone?: string
+          created_at?: string | null
+          daily_rate?: number
+          freelancer_id?: string | null
+          id?: string
+          project_description?: string | null
+          status?: string | null
+          work_address?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contacts_freelancer_id_fkey"
+            columns: ["freelancer_id"]
+            isOneToOne: false
+            referencedRelation: "freelancers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      freelancers: {
+        Row: {
+          age: number
+          approved: boolean | null
+          availability: string | null
+          created_at: string | null
+          email: string
+          experiences: string
+          gender: string | null
+          id: string
+          name: string
+          phone: string
+          photo_url: string | null
+          portfolio: string | null
+          region: string
+          updated_at: string | null
+        }
+        Insert: {
+          age: number
+          approved?: boolean | null
+          availability?: string | null
+          created_at?: string | null
+          email: string
+          experiences: string
+          gender?: string | null
+          id?: string
+          name: string
+          phone: string
+          photo_url?: string | null
+          portfolio?: string | null
+          region: string
+          updated_at?: string | null
+        }
+        Update: {
+          age?: number
+          approved?: boolean | null
+          availability?: string | null
+          created_at?: string | null
+          email?: string
+          experiences?: string
+          gender?: string | null
+          id?: string
+          name?: string
+          phone?: string
+          photo_url?: string | null
+          portfolio?: string | null
+          region?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      jobs: {
+        Row: {
+          active: boolean | null
+          budget: string
+          created_at: string | null
+          description: string | null
+          id: string
+          location: string
+          title: string
+        }
+        Insert: {
+          active?: boolean | null
+          budget: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          location: string
+          title: string
+        }
+        Update: {
+          active?: boolean | null
+          budget?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          location?: string
+          title?: string
+        }
+        Relationships: []
+      }
+      sponsors: {
+        Row: {
+          active: boolean | null
+          created_at: string | null
+          description: string
+          id: string
+          logo: string
+          name: string
+        }
+        Insert: {
+          active?: boolean | null
+          created_at?: string | null
+          description: string
+          id?: string
+          logo: string
+          name: string
+        }
+        Update: {
+          active?: boolean | null
+          created_at?: string | null
+          description?: string
+          id?: string
+          logo?: string
+          name?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

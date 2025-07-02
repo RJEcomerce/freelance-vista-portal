@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ContactModalProps {
   isOpen: boolean;
@@ -27,34 +28,73 @@ const ContactModal = ({ isOpen, onClose, freelancer }: ContactModalProps) => {
     dailyRate: '',
     projectDescription: ''
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Simulação de envio para Supabase
-    console.log('Dados do contato:', {
-      ...formData,
-      freelancerId: freelancer?.id,
-      freelancerName: freelancer?.name,
-      timestamp: new Date().toISOString()
-    });
+    if (!freelancer) return;
 
-    toast({
-      title: "Solicitação enviada!",
-      description: `Seu contato foi enviado para ${freelancer?.name}. Aguarde o retorno.`,
-    });
-
-    // Reset form
-    setFormData({
-      contractorName: '',
-      phone: '',
-      email: '',
-      workAddress: '',
-      dailyRate: '',
-      projectDescription: ''
-    });
+    setIsSubmitting(true);
     
-    onClose();
+    try {
+      // Salvar contato no Supabase
+      const { error } = await supabase
+        .from('contacts')
+        .insert({
+          freelancer_id: freelancer.id,
+          contractor_name: formData.contractorName,
+          contractor_email: formData.email,
+          contractor_phone: formData.phone,
+          work_address: formData.workAddress,
+          daily_rate: parseFloat(formData.dailyRate),
+          project_description: formData.projectDescription || null
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      // Enviar email para o freelancer
+      try {
+        await supabase.functions.invoke('send-contact-email', {
+          body: {
+            freelancerEmail: freelancer.email,
+            freelancerName: freelancer.name,
+            contractorData: formData
+          }
+        });
+      } catch (emailError) {
+        console.error('Erro ao enviar email:', emailError);
+        // Não bloquear o processo se o email falhar
+      }
+
+      toast({
+        title: "Solicitação enviada!",
+        description: `Seu contato foi enviado para ${freelancer?.name}. Aguarde o retorno.`,
+      });
+
+      // Reset form
+      setFormData({
+        contractorName: '',
+        phone: '',
+        email: '',
+        workAddress: '',
+        dailyRate: '',
+        projectDescription: ''
+      });
+      
+      onClose();
+    } catch (error: any) {
+      console.error('Erro ao enviar solicitação:', error);
+      toast({
+        title: "Erro ao enviar solicitação",
+        description: error.message || "Ocorreu um erro. Tente novamente.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -151,11 +191,11 @@ const ContactModal = ({ isOpen, onClose, freelancer }: ContactModalProps) => {
           </div>
           
           <div className="flex justify-end space-x-2 pt-4">
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
               Cancelar
             </Button>
-            <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
-              Enviar Solicitação
+            <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={isSubmitting}>
+              {isSubmitting ? 'Enviando...' : 'Enviar Solicitação'}
             </Button>
           </div>
         </form>

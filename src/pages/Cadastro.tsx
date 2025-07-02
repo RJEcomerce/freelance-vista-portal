@@ -9,7 +9,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { UserPlus, AlertCircle } from 'lucide-react';
+import { UserPlus, AlertCircle, Upload } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 const Cadastro = () => {
   const navigate = useNavigate();
@@ -23,10 +24,12 @@ const Cadastro = () => {
     region: '',
     experiences: '',
     portfolio: '',
-    dailyRate: '',
     availability: '',
     acceptTerms: false
   });
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const regions = [
     'São Paulo', 'Rio de Janeiro', 'Belo Horizonte', 'Brasília', 
@@ -48,21 +51,72 @@ const Cadastro = () => {
       return;
     }
 
-    // Simulação de envio para Supabase
-    console.log('Dados do cadastro:', {
-      ...formData,
-      timestamp: new Date().toISOString()
-    });
+    setIsSubmitting(true);
 
-    toast({
-      title: "Cadastro realizado com sucesso!",
-      description: "Seu perfil foi criado e será analisado pela nossa equipe.",
-    });
+    try {
+      let photo_url = null;
 
-    // Redirect to home after success
-    setTimeout(() => {
-      navigate('/');
-    }, 2000);
+      // Upload da foto se existir
+      if (photoFile) {
+        const fileExt = photoFile.name.split('.').pop();
+        const fileName = `${Math.random()}.${fileExt}`;
+        
+        const { error: uploadError, data } = await supabase.storage
+          .from('profile-photos')
+          .upload(fileName, photoFile);
+
+        if (uploadError) {
+          throw uploadError;
+        }
+
+        // Obter URL pública da imagem
+        const { data: { publicUrl } } = supabase.storage
+          .from('profile-photos')
+          .getPublicUrl(fileName);
+        
+        photo_url = publicUrl;
+      }
+
+      // Inserir freelancer no banco
+      const { error } = await supabase
+        .from('freelancers')
+        .insert({
+          name: formData.fullName,
+          email: formData.email,
+          phone: formData.phone,
+          age: parseInt(formData.age),
+          gender: formData.gender || null,
+          region: formData.region,
+          experiences: formData.experiences,
+          portfolio: formData.portfolio || null,
+          availability: formData.availability || null,
+          photo_url
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "Cadastro realizado com sucesso!",
+        description: "Seu perfil foi criado e será analisado pela nossa equipe.",
+      });
+
+      // Redirect to home after success
+      setTimeout(() => {
+        navigate('/');
+      }, 2000);
+
+    } catch (error: any) {
+      console.error('Erro no cadastro:', error);
+      toast({
+        title: "Erro no cadastro",
+        description: error.message || "Ocorreu um erro ao realizar o cadastro.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -78,6 +132,40 @@ const Cadastro = () => {
       ...prev,
       [name]: value
     }));
+  };
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Verificar tipo de arquivo
+      if (!file.type.startsWith('image/')) {
+        toast({
+          title: "Arquivo inválido",
+          description: "Por favor, selecione apenas arquivos de imagem.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Verificar tamanho (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "Arquivo muito grande",
+          description: "A imagem deve ter no máximo 5MB.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      setPhotoFile(file);
+      
+      // Criar preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setPhotoPreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   return (
@@ -97,6 +185,39 @@ const Cadastro = () => {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Upload de Foto */}
+            <div className="mb-6">
+              <Label htmlFor="photo">Foto de Perfil</Label>
+              <div className="mt-2">
+                <input
+                  id="photo"
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhotoChange}
+                  className="hidden"
+                />
+                <div className="flex items-center space-x-4">
+                  <label
+                    htmlFor="photo"
+                    className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-md cursor-pointer hover:bg-gray-50"
+                  >
+                    <Upload className="h-4 w-4" />
+                    <span>Escolher Foto</span>
+                  </label>
+                  {photoPreview && (
+                    <img
+                      src={photoPreview}
+                      alt="Preview"
+                      className="w-16 h-16 rounded-full object-cover"
+                    />
+                  )}
+                </div>
+                <p className="text-sm text-gray-500 mt-1">
+                  Arquivos aceitos: JPG, PNG, GIF (máx. 5MB)
+                </p>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <Label htmlFor="fullName">Nome Completo *</Label>
@@ -205,23 +326,8 @@ const Cadastro = () => {
               />
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <Label htmlFor="dailyRate">Valor da Diária (R$)</Label>
-                <Input
-                  id="dailyRate"
-                  name="dailyRate"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={formData.dailyRate}
-                  onChange={handleChange}
-                  placeholder="Ex: 250.00"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="availability">Disponibilidade</Label>
+            <div>
+              <Label htmlFor="availability">Disponibilidade</Label>
                 <Select value={formData.availability} onValueChange={(value) => handleSelectChange('availability', value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione sua disponibilidade" />
@@ -233,7 +339,6 @@ const Cadastro = () => {
                     <SelectItem value="flexible">Flexível</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
             </div>
             
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
@@ -271,9 +376,9 @@ const Cadastro = () => {
               <Button
                 type="submit"
                 className="bg-blue-600 hover:bg-blue-700"
-                disabled={!formData.acceptTerms}
+                disabled={!formData.acceptTerms || isSubmitting}
               >
-                Criar Cadastro
+                {isSubmitting ? 'Cadastrando...' : 'Criar Cadastro'}
               </Button>
             </div>
           </form>

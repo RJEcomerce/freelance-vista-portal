@@ -1,18 +1,52 @@
 
 import { MapPin, Briefcase, Star } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 const Sidebar = () => {
-  const sponsors = [
-    { name: "TechCorp", logo: "🏢", description: "Soluções em TI" },
-    { name: "DesignPro", logo: "🎨", description: "Design Gráfico" },
-    { name: "WebDev", logo: "💻", description: "Desenvolvimento Web" }
-  ];
+  const [sponsors, setSponsors] = useState([]);
+  const [jobs, setJobs] = useState([]);
 
-  const jobs = [
-    { title: "Desenvolvedor React", location: "São Paulo", budget: "R$ 300/dia" },
-    { title: "Designer UX/UI", location: "Rio de Janeiro", budget: "R$ 250/dia" },
-    { title: "Redator de Conteúdo", location: "Belo Horizonte", budget: "R$ 150/dia" }
-  ];
+  useEffect(() => {
+    fetchSponsors();
+    fetchJobs();
+  }, []);
+
+  const fetchSponsors = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('sponsors')
+        .select('*')
+        .eq('active', true);
+      
+      if (error) {
+        console.error('Erro ao buscar patrocinadores:', error);
+        return;
+      }
+
+      setSponsors(data || []);
+    } catch (error) {
+      console.error('Erro ao buscar patrocinadores:', error);
+    }
+  };
+
+  const fetchJobs = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('jobs')
+        .select('*')
+        .eq('active', true);
+      
+      if (error) {
+        console.error('Erro ao buscar vagas:', error);
+        return;
+      }
+
+      setJobs(data || []);
+    } catch (error) {
+      console.error('Erro ao buscar vagas:', error);
+    }
+  };
 
   return (
     <div className="w-full bg-gray-50 p-6 space-y-8">

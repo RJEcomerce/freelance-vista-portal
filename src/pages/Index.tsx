@@ -1,10 +1,11 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import FreelancerCard from '@/components/FreelancerCard';
 import ContactModal from '@/components/ContactModal';
 import FilterBar from '@/components/FilterBar';
+import { supabase } from '@/integrations/supabase/client';
 
 const Index = () => {
   const [selectedFreelancer, setSelectedFreelancer] = useState(null);
@@ -14,76 +15,47 @@ const Index = () => {
     experience: '',
     gender: ''
   });
+  const [freelancers, setFreelancers] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Mock data - em produção viria do Supabase
-  const freelancers = [
-    {
-      id: '1',
-      name: 'Ana Silva',
-      age: 28,
-      region: 'São Paulo',
-      experiences: ['Desenvolvimento Web', 'React', 'Node.js'],
-      photo: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face',
-      email: 'ana.silva@email.com',
-      phone: '(11) 99999-9999',
-      gender: 'Feminino'
-    },
-    {
-      id: '2',
-      name: 'Carlos Oliveira',
-      age: 32,
-      region: 'Rio de Janeiro',
-      experiences: ['Design Gráfico', 'UI/UX', 'Branding'],
-      photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face',
-      email: 'carlos.oliveira@email.com',
-      phone: '(21) 88888-8888',
-      gender: 'Masculino'
-    },
-    {
-      id: '3',
-      name: 'Mariana Costa',
-      age: 26,
-      region: 'Belo Horizonte',
-      experiences: ['Marketing Digital', 'SEO', 'Google Ads'],
-      photo: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face',
-      email: 'mariana.costa@email.com',
-      phone: '(31) 77777-7777',
-      gender: 'Feminino'
-    },
-    {
-      id: '4',
-      name: 'Pedro Santos',
-      age: 35,
-      region: 'Brasília',
-      experiences: ['Consultoria', 'Gestão de Projetos', 'Scrum'],
-      photo: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
-      email: 'pedro.santos@email.com',
-      phone: '(61) 66666-6666',
-      gender: 'Masculino'
-    },
-    {
-      id: '5',
-      name: 'Julia Fernandes',
-      age: 29,
-      region: 'Salvador',
-      experiences: ['Redação', 'Copywriting', 'Content Marketing'],
-      photo: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop&crop=face',
-      email: 'julia.fernandes@email.com',
-      phone: '(71) 55555-5555',
-      gender: 'Feminino'
-    },
-    {
-      id: '6',
-      name: 'Roberto Lima',
-      age: 41,
-      region: 'Recife',
-      experiences: ['Fotografia', 'Edição de Vídeo', 'Produção Audiovisual'],
-      photo: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop&crop=face',
-      email: 'roberto.lima@email.com',
-      phone: '(81) 44444-4444',
-      gender: 'Masculino'
+  useEffect(() => {
+    fetchFreelancers();
+  }, []);
+
+  const fetchFreelancers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('freelancers')
+        .select('*')
+        .eq('approved', true);
+      
+      if (error) {
+        console.error('Erro ao buscar freelancers:', error);
+        return;
+      }
+
+      // Transformar dados para o formato esperado pelos componentes
+      const formattedFreelancers = data?.map(freelancer => ({
+        id: freelancer.id,
+        name: freelancer.name,
+        age: freelancer.age,
+        region: freelancer.region,
+        experiences: freelancer.experiences.split(',').map(exp => exp.trim()),
+        photo: freelancer.photo_url || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
+        email: freelancer.email,
+        phone: freelancer.phone,
+        gender: freelancer.gender || 'Não informado'
+      })) || [];
+
+      setFreelancers(formattedFreelancers);
+    } catch (error) {
+      console.error('Erro ao buscar freelancers:', error);
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  // Mock data como fallback - removido da produção
 
   const filteredFreelancers = freelancers.filter(freelancer => {
     if (filters.region && freelancer.region !== filters.region) return false;
@@ -127,7 +99,11 @@ const Index = () => {
             <FilterBar onFilterChange={setFilters} />
             
             <div className="space-y-6">
-              {filteredFreelancers.length > 0 ? (
+              {loading ? (
+                <div className="text-center py-12">
+                  <p className="text-gray-500 text-lg">Carregando freelancers...</p>
+                </div>
+              ) : filteredFreelancers.length > 0 ? (
                 filteredFreelancers.map(freelancer => (
                   <FreelancerCard
                     key={freelancer.id}
@@ -138,7 +114,10 @@ const Index = () => {
               ) : (
                 <div className="text-center py-12">
                   <p className="text-gray-500 text-lg">
-                    Nenhum freelancer encontrado com os filtros selecionados.
+                    {freelancers.length === 0 
+                      ? 'Nenhum freelancer cadastrado ainda.' 
+                      : 'Nenhum freelancer encontrado com os filtros selecionados.'
+                    }
                   </p>
                 </div>
               )}
