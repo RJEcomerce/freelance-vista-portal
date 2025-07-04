@@ -25,25 +25,25 @@ const AdminLogin = () => {
     try {
       console.log('Tentando login com:', formData.username);
       
-      // Buscar usuário admin no banco
+      // Buscar usuário admin no banco usando a tabela admin_users
       const { data: adminUser, error } = await supabase
         .from('admin_users')
         .select('*')
         .eq('username', formData.username)
         .single();
 
-      console.log('Resultado da busca:', { adminUser, error });
+      console.log('Resultado da busca admin_users:', { adminUser, error });
 
       if (error) {
-        console.error('Erro na busca do usuário:', error);
-        throw new Error('Usuário não encontrado');
+        console.error('Erro na busca do usuário admin:', error);
+        throw new Error('Usuário não encontrado na tabela admin_users');
       }
 
       if (!adminUser) {
-        throw new Error('Usuário não encontrado');
+        throw new Error('Usuário admin não encontrado');
       }
 
-      // Por enquanto, verificação simples da senha (deve ser melhorada em produção)
+      // Verificação da senha (em produção, use bcrypt para comparar hash)
       if (formData.password !== 'admin123') {
         throw new Error('Senha incorreta');
       }
@@ -56,7 +56,7 @@ const AdminLogin = () => {
       };
 
       localStorage.setItem('adminSession', JSON.stringify(adminSession));
-      console.log('Sessão salva:', adminSession);
+      console.log('Sessão admin salva:', adminSession);
 
       toast({
         title: "Login realizado com sucesso!",
@@ -65,7 +65,7 @@ const AdminLogin = () => {
 
       navigate('/admin');
     } catch (error: any) {
-      console.error('Erro no login:', error);
+      console.error('Erro no login admin:', error);
       toast({
         title: "Erro no login",
         description: error.message || "Usuário ou senha incorretos.",
