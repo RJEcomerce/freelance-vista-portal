@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox'; // Importar Checkbox
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -29,11 +30,21 @@ const ContactModal = ({ isOpen, onClose, freelancer }: ContactModalProps) => {
     projectDescription: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [contactTermsAccepted, setContactTermsAccepted] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!freelancer) return;
+
+    if (!contactTermsAccepted) {
+      toast({
+        title: "Termo de Responsabilidade",
+        description: "Você deve aceitar o termo de responsabilidade para enviar o contato.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setIsSubmitting(true);
     
@@ -66,12 +77,27 @@ const ContactModal = ({ isOpen, onClose, freelancer }: ContactModalProps) => {
         });
       } catch (emailError) {
         console.error('Erro ao enviar email:', emailError);
-        // Não bloquear o processo se o email falhar
+        // Não bloquear o processo se o email falhar, mas talvez logar ou informar o usuário de forma diferente.
       }
+
+      // Buscar mensagem de sucesso customizada
+      let successMessage = `Seu contato foi enviado para ${freelancer?.name}. Aguarde o retorno.`; // Padrão
+      try {
+        const { data: setting, error: settingError } = await supabase
+          .from('platform_settings')
+          .select('value')
+          .eq('key', 'POST_CONTACT_MSG')
+          .single();
+        if (settingError) console.warn("Erro ao buscar mensagem de pós-contato:", settingError.message);
+        if (setting && setting.value) {
+          // Substituir placeholder se houver
+          successMessage = setting.value.replace('{freelancerName}', freelancer?.name || 'o freelancer');
+        }
+      } catch (e) { console.warn("Exceção ao buscar msg pós-contato:", e); }
 
       toast({
         title: "Solicitação enviada!",
-        description: `Seu contato foi enviado para ${freelancer?.name}. Aguarde o retorno.`,
+        description: successMessage,
       });
 
       // Reset form
@@ -184,17 +210,35 @@ const ContactModal = ({ isOpen, onClose, freelancer }: ContactModalProps) => {
             />
           </div>
           
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <p className="text-sm text-yellow-800">
-              <strong>Responsabilidade:</strong> Você é responsável pela veracidade das informações prestadas neste formulário. O FreelanceHub apenas facilita o contato entre as partes.
-            </p>
+          {/* Termo de Responsabilidade e Checkbox */}
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 space-y-3">
+            <div>
+              <h4 className="font-semibold text-sm text-yellow-900 mb-1">Termo de Responsabilidade</h4>
+              <p className="text-xs text-yellow-800">
+                Ao enviar esta solicitação de contato, você declara que todas as informações fornecidas são verdadeiras e de sua inteira responsabilidade. O FreelanceHub atua apenas como intermediário para facilitar o contato, não se responsabilizando pela veracidade das informações ou pelos acordos firmados.
+              </p>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="contactTerms"
+                checked={contactTermsAccepted}
+                onCheckedChange={(checked) => setContactTermsAccepted(checked as boolean)}
+              />
+              <Label htmlFor="contactTerms" className="text-xs font-medium cursor-pointer">
+                Li e aceito o termo de responsabilidade *
+              </Label>
+            </div>
           </div>
           
           <div className="flex justify-end space-x-2 pt-4">
             <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
               Cancelar
             </Button>
-            <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={isSubmitting}>
+            <Button
+              type="submit"
+              className="bg-blue-600 hover:bg-blue-700"
+              disabled={isSubmitting || !contactTermsAccepted}
+            >
               {isSubmitting ? 'Enviando...' : 'Enviar Solicitação'}
             </Button>
           </div>

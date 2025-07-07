@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
 import { Button } from '@/components/ui/button';
@@ -25,19 +25,79 @@ const Cadastro = () => {
     experiences: '',
     portfolio: '',
     availability: '',
-    acceptTerms: false
+    acceptTerms: false,
+    // Adicionar estado e cidade para o novo fluxo de região
+    selectedState: '',
+    selectedCity: ''
   });
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const regions = [
-    'São Paulo', 'Rio de Janeiro', 'Belo Horizonte', 'Brasília', 
-    'Salvador', 'Recife', 'Porto Alegre', 'Curitiba', 'Fortaleza', 
-    'Manaus', 'Goiânia', 'Campo Grande'
-  ];
+  // Estados para popular os selects de Estado e Cidade
+  const [states, setStates] = useState<{ id: number; sigla: string; nome: string }[]>([]);
+  const [cities, setCities] = useState<{ id: number; nome: string }[]>([]);
+  const [loadingStates, setLoadingStates] = useState(false);
+  const [loadingCities, setLoadingCities] = useState(false);
+
+
+  // const regions = [ // Removido, será substituído pela lógica de estado/cidade
+  //   'São Paulo', 'Rio de Janeiro', 'Belo Horizonte', 'Brasília',
+  //   'Salvador', 'Recife', 'Porto Alegre', 'Curitiba', 'Fortaleza',
+  //   'Manaus', 'Goiânia', 'Campo Grande'
+  // ];
 
   const genders = ['Masculino', 'Feminino', 'Outro', 'Prefiro não informar'];
+
+  // Fetch Estados (UFs) from IBGE API
+  useEffect(() => {
+    const fetchStates = async () => {
+      setLoadingStates(true);
+      try {
+        const response = await fetch('https://servicodados.ibge.gov.br/api/v1/localidades/estados?orderBy=nome');
+        if (!response.ok) {
+          throw new Error('Falha ao buscar estados');
+        }
+        const data = await response.json();
+        setStates(data);
+      } catch (error) {
+        console.error("Erro ao buscar estados:", error);
+        toast({ title: "Erro", description: "Não foi possível carregar a lista de estados.", variant: "destructive" });
+      } finally {
+        setLoadingStates(false);
+      }
+    };
+    fetchStates();
+  }, [toast]);
+
+  // Fetch Cidades when selectedState changes
+  useEffect(() => {
+    if (formData.selectedState) {
+      const fetchCities = async () => {
+        setLoadingCities(true);
+        setCities([]); // Limpar cidades anteriores
+        handleSelectChange('selectedCity', ''); // Limpar cidade selecionada no form
+        try {
+          const response = await fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${formData.selectedState}/municipios?orderBy=nome`);
+          if (!response.ok) {
+            throw new Error('Falha ao buscar cidades');
+          }
+          const data = await response.json();
+          setCities(data);
+        } catch (error) {
+          console.error("Erro ao buscar cidades:", error);
+          toast({ title: "Erro", description: "Não foi possível carregar a lista de cidades para o estado selecionado.", variant: "destructive" });
+        } finally {
+          setLoadingCities(false);
+        }
+      };
+      fetchCities();
+    } else {
+      setCities([]); // Limpar cidades se nenhum estado estiver selecionado
+      handleSelectChange('selectedCity', '');
+    }
+  }, [formData.selectedState, toast]);
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,6 +138,12 @@ const Cadastro = () => {
       }
 
       // Inserir freelancer no banco
+      const selectedStateObj = states.find(s => s.sigla === formData.selectedState);
+      const stateName = selectedStateObj ? selectedStateObj.sigla : ''; // Usar sigla ou nome como preferir
+      const cityName = formData.selectedCity;
+      const fullRegion = cityName && stateName ? `${cityName} - ${stateName}` : formData.region;
+
+
       const { error } = await supabase
         .from('freelancers')
         .insert({
@@ -86,20 +152,36 @@ const Cadastro = () => {
           phone: formData.phone,
           age: parseInt(formData.age),
           gender: formData.gender || null,
-          region: formData.region,
+          region: fullRegion, // Usar a região combinada
           experiences: formData.experiences,
           portfolio: formData.portfolio || null,
           availability: formData.availability || null,
-          photo_url
+          photo_url,
+          // O campo 'approved' por padrão será null ou false, dependendo da config do DB
+          // created_at e updated_at são gerenciados pelo Supabase
         });
 
       if (error) {
         throw error;
       }
 
+      // Buscar mensagem de sucesso customizada
+      let successMessage = "Seu perfil foi criado e será analisado pela nossa equipe."; // Padrão
+      try {
+        const { data: setting, error: settingError } = await supabase
+          .from('platform_settings')
+          .select('value')
+          .eq('key', 'POST_REGISTRATION_MSG')
+          .single();
+        if (settingError) console.warn("Erro ao buscar mensagem de pós-cadastro:", settingError.message);
+        if (setting && setting.value) {
+          successMessage = setting.value;
+        }
+      } catch (e) { console.warn("Exceção ao buscar msg pós-cadastro:", e); }
+
       toast({
         title: "Cadastro realizado com sucesso!",
-        description: "Seu perfil foi criado e será analisado pela nossa equipe.",
+        description: successMessage,
       });
 
       // Redirect to home after success
@@ -284,16 +366,48 @@ const Cadastro = () => {
                 </Select>
               </div>
               
+              {/* Novo Select para Estado */}
               <div>
-                <Label htmlFor="region">Região de Atuação *</Label>
-                <Select value={formData.region} onValueChange={(value) => handleSelectChange('region', value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione sua região" />
+                <Label htmlFor="selectedState">Estado *</Label>
+                <Select
+                  value={formData.selectedState}
+                  onValueChange={(value) => handleSelectChange('selectedState', value)}
+                  required
+                >
+                  <SelectTrigger disabled={loadingStates}>
+                    <SelectValue placeholder={loadingStates ? "Carregando estados..." : "Selecione o estado"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {regions.map((region) => (
-                      <SelectItem key={region} value={region}>
-                        {region}
+                    {states.map((state) => (
+                      <SelectItem key={state.sigla} value={state.sigla}>
+                        {state.nome} ({state.sigla})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Novo Select para Cidade */}
+              <div>
+                <Label htmlFor="selectedCity">Cidade *</Label>
+                <Select
+                  value={formData.selectedCity}
+                  onValueChange={(value) => handleSelectChange('selectedCity', value)}
+                  disabled={!formData.selectedState || loadingCities || cities.length === 0}
+                  required
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={
+                      loadingCities ? "Carregando cidades..." :
+                      !formData.selectedState ? "Selecione um estado primeiro" :
+                      cities.length === 0 && !loadingCities ? "Nenhuma cidade encontrada" :
+                      "Selecione a cidade"
+                    } />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cities.map((city) => (
+                      <SelectItem key={city.id} value={city.nome}>
+                        {city.nome}
                       </SelectItem>
                     ))}
                   </SelectContent>

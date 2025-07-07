@@ -1,0 +1,1 @@
+\n-- Seed Admin User (password 'admin123' is for demo only, use bcrypt in production)\nINSERT INTO public.admin_users (email, password_hash) VALUES ('admin@example.com', 'admin123') ON CONFLICT (email) DO NOTHING;\n

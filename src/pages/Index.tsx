@@ -6,6 +6,14 @@ import FreelancerCard from '@/components/FreelancerCard';
 import ContactModal from '@/components/ContactModal';
 import FilterBar from '@/components/FilterBar';
 import { supabase } from '@/integrations/supabase/client';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Importar Alert
+import { Megaphone } from 'lucide-react'; // Importar um ícone
+
+interface HomePageAlert {
+  title: string;
+  message: string;
+  visible: boolean;
+}
 
 const Index = () => {
   const [selectedFreelancer, setSelectedFreelancer] = useState(null);
@@ -17,10 +25,45 @@ const Index = () => {
   });
   const [freelancers, setFreelancers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [homePageAlert, setHomePageAlert] = useState<HomePageAlert | null>(null);
 
   useEffect(() => {
     fetchFreelancers();
+    fetchHomePageAlertSettings();
   }, []);
+
+  const fetchHomePageAlertSettings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('platform_settings')
+        .select('key, value')
+        .in('key', ['HOME_PAGE_ALERT_TITLE', 'HOME_PAGE_ALERT_MESSAGE', 'HOME_PAGE_ALERT_VISIBLE']);
+
+      if (error) {
+        console.warn("Erro ao buscar configurações de alerta da página inicial:", error.message);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        const settingsMap: Record<string, string> = {};
+        data.forEach(item => {
+          settingsMap[item.key] = item.value || '';
+        });
+
+        if (settingsMap['HOME_PAGE_ALERT_VISIBLE'] === 'true') {
+          setHomePageAlert({
+            title: settingsMap['HOME_PAGE_ALERT_TITLE'] || '',
+            message: settingsMap['HOME_PAGE_ALERT_MESSAGE'] || '',
+            visible: true,
+          });
+        } else {
+          setHomePageAlert(null); // Não mostrar se não estiver visível
+        }
+      }
+    } catch (e) {
+      console.warn("Exceção ao buscar configurações de alerta:", e);
+    }
+  };
 
   const fetchFreelancers = async () => {
     try {
@@ -40,7 +83,7 @@ const Index = () => {
         name: freelancer.name,
         age: freelancer.age,
         region: freelancer.region,
-        experiences: freelancer.experiences.split(',').map(exp => exp.trim()),
+        experiences: typeof freelancer.experiences === 'string' ? freelancer.experiences.split(',').map(exp => exp.trim()) : [],
         photo: freelancer.photo_url || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
         email: freelancer.email,
         phone: freelancer.phone,
@@ -78,6 +121,18 @@ const Index = () => {
     <div className="min-h-screen bg-gray-50">
       <Header />
       
+      {homePageAlert?.visible && homePageAlert.message && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+          <Alert>
+            <Megaphone className="h-4 w-4" />
+            {homePageAlert.title && <AlertTitle>{homePageAlert.title}</AlertTitle>}
+            <AlertDescription>
+              {homePageAlert.message}
+            </AlertDescription>
+          </Alert>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Sidebar - 1/3 */}

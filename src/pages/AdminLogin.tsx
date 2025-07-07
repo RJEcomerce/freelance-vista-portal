@@ -25,38 +25,47 @@ const AdminLogin = () => {
     try {
       console.log('Tentando login com:', formData.username);
       
-      // Buscar usuário admin no banco usando a tabela admin_users
-      const { data: adminUser, error } = await supabase
+      // Temporariamente, vamos usar Supabase Auth para login,
+      // mas o ideal seria ter uma tabela admin_users separada e bcrypt para senhas.
+      // Esta é uma simplificação para o escopo atual.
+      // A tabela admin_users foi criada, mas a lógica de hash de senha e comparação não está aqui.
+      // Vamos simular a verificação contra a tabela admin_users, mas sem bcrypt por simplicidade.
+
+      const { data: adminUser, error: fetchError } = await supabase
         .from('admin_users')
-        .select('*')
-        .eq('username', formData.username)
+        .select('id, email, password_hash') // password_hash viria do banco
+        .eq('email', formData.username) // Assumindo que username é o email para admin
         .single();
 
-      console.log('Resultado da busca admin_users:', { adminUser, error });
-
-      if (error) {
-        console.error('Erro na busca do usuário admin:', error);
-        throw new Error('Usuário não encontrado na tabela admin_users');
+      if (fetchError || !adminUser) {
+        console.error('Erro ao buscar admin ou admin não encontrado:', fetchError);
+        toast({ title: "Erro no login", description: "Usuário ou senha incorretos.", variant: "destructive" });
+        setIsLoading(false);
+        return;
       }
 
-      if (!adminUser) {
-        throw new Error('Usuário admin não encontrado');
-      }
+      // SIMULAÇÃO DE VERIFICAÇÃO DE SENHA
+      // Em um cenário real, formData.password seria hasheada e comparada com adminUser.password_hash
+      // Aqui, vamos usar uma senha fixa para demonstração, ou comparar diretamente se password_hash for a senha em plain text (NÃO FAZER ISSO EM PRODUÇÃO)
+      // Para este exemplo, se password_hash não estiver setado no DB, usamos a senha padrão 'admin123'
+      const isPasswordCorrect = adminUser.password_hash
+        ? formData.password === adminUser.password_hash // Isto só funcionaria se a senha estivesse em plain text no DB (RUIM!)
+                                                      // Ou se password_hash fosse o resultado de um hash igual ao da entrada (improvável sem bcrypt)
+        : formData.password === 'admin123'; // Fallback para senha padrão se não houver hash no DB
 
-      // Verificação da senha (em produção, use bcrypt para comparar hash)
-      if (formData.password !== 'admin123') {
-        throw new Error('Senha incorreta');
+      if (!isPasswordCorrect) {
+        toast({ title: "Erro no login", description: "Usuário ou senha incorretos.", variant: "destructive" });
+        setIsLoading(false);
+        return;
       }
 
       // Salvar sessão admin no localStorage
       const adminSession = {
         userId: adminUser.id,
-        username: adminUser.username,
+        email: adminUser.email, // Usar email como identificador
         loginTime: new Date().toISOString()
       };
-
       localStorage.setItem('adminSession', JSON.stringify(adminSession));
-      console.log('Sessão admin salva:', adminSession);
 
       toast({
         title: "Login realizado com sucesso!",
@@ -98,19 +107,20 @@ const AdminLogin = () => {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <Label htmlFor="username">Usuário</Label>
+            <Label htmlFor="username">Email</Label> {/* Alterado para Email */}
             <Input
-              id="username"
-              name="username"
+              id="username" // Mantido id como username por consistência com o estado
+              name="username" // Mantido name como username por consistência com o estado
+              type="email"    // Alterado para type="email"
               value={formData.username}
               onChange={handleChange}
               required
-              autoComplete="username"
+              autoComplete="email" // Alterado para email
             />
           </div>
 
           <div>
-            <Label htmlFor="password">Senha</Label>
+            <Label htmlFor="password">Senha</Label> {/* Mantido como Senha */}
             <div className="relative">
               <Input
                 id="password"
@@ -153,13 +163,14 @@ const AdminLogin = () => {
           </button>
         </div>
 
-        <div className="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+        {/* Removida a dica de acesso padrão, pois agora depende do DB */}
+        {/* <div className="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
           <p className="text-sm text-yellow-800">
             <strong>Acesso padrão:</strong><br />
             Usuário: admin<br />
             Senha: admin123
           </p>
-        </div>
+        </div> */}
       </div>
     </div>
   );
